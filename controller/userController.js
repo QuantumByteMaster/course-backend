@@ -113,7 +113,29 @@ async function Signin(req, res) {
 }
 
 async function getCourses(req, res) {
-  //get all the courses from the user database
+  const redis = require("../redis");
+  try {
+    const cachedCourses = await redis.get("all_courses");
+    if (cachedCourses) {
+      return res.status(200).json({
+        message: "Courses fetched from cache",
+        courses: JSON.parse(cachedCourses),
+      });
+    }
+
+    const courses = await require("../db").courseModel.find({});
+    
+    // Cache for 1 hour (3600 seconds)
+    await redis.set("all_courses", JSON.stringify(courses), "EX", 3600);
+
+    return res.status(200).json({
+      message: "Courses fetched successfully",
+      courses: courses,
+    });
+  } catch (e) {
+    console.error("Error fetching courses:", e);
+    return res.status(500).json({ message: "Failed to fetch courses" });
+  }
 }
 async function Signout(req, res) {}
 
